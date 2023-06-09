@@ -1,0 +1,16 @@
+version: "3.8"
+
+services:
+  s3bucket:
+    image: localstack/localstack:0.14.5
+    container_name: streaming-engine-s3bucket
+    user: "root"
+    environment: 
+      - AWS_DEFAULT_REGION=us-east-1
+      - EDGE_PORT=4566
+      - SERVICES=s3
+      - DATA_DIR=/tmp/localstack/data
+    ports: 
+      - '4566:4566'
+    volumes:
+      - ./s3-local/data:/tmp/localstack/data
