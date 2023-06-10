@@ -3,5 +3,6 @@
 **/db.sqlite3
 **/.idea/
 **/.vscode/
-**/.env/
+**/.env
 **/s3-local/
+**/migrations/*
