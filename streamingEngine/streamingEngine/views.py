@@ -1,16 +1,30 @@
 import os, uuid, mimetypes, shutil
 from django.http import HttpResponse, HttpRequest, HttpResponseServerError
 from rest_framework.views import APIView
+from django.views.generic import TemplateView
 from django.conf import settings
 from django.core.files.uploadedfile import InMemoryUploadedFile
 from django.core.files.base import ContentFile
+from django.shortcuts import render
 
 from StreamingEngine.streamingEngine.storage.backends.storageInterface import IStorageInterface
 from StreamingEngine.streamingEngine.storage.backends.file import File
 from StreamingEngine.streamingEngine.storage.backends.s3.s3 import S3
 from StreamingEngine.streamingEngine.storage.backends.transcoder.transcoder import TranscoderConfiguration, HLSTranscoder
 
-class StreamingView(APIView):
+class StreamingView(TemplateView):
+
+    template_name = "index.html"
+
+    def get(self, request:HttpRequest, *args, **kwargs):
+        file = request.GET.get('file', '')
+        if (not (file is None)) and len(file) > 0:
+            return render(request, self.template_name, {"url": f"/playlist?file={file}"})
+
+
+
+
+class PlayList(APIView):
 
     def __get_storage(self) -> IStorageInterface:
         return S3()
@@ -63,17 +77,15 @@ class StreamingView(APIView):
                                                    base_output_dir=base_output_dir, relative_output_path=relative_filepath)
             return success
 
-
-    def get(self, request:HttpRequest, *args, **kwargs):
+    def get(self, request: HttpRequest, *args, **kwargs):
         file = request.GET.get('file', '')
         if (not (file is None)) and len(file) > 0:
             bucket = settings.AWS["S3"]["BUCKETS"]["RAW VIDEO"]["NAME"]
             storage = self.__get_storage()
-            file:File = storage.get_file(basedir=bucket, path=file)
+            file: File = storage.get_file(basedir=bucket, path=file)
             if not (file is None):
                 return HttpResponse(ContentFile(file.file), content_type=file.content_type)
         return HttpResponseServerError('Could not fetch a file. A file does not exist or has been removed')
-
 
     def post(self, request:HttpRequest, *args, **kwargs):
         if not (request.FILES is None):
