@@ -6,3 +6,4 @@
 **/.env
 **/s3-local/
 **/migrations/*
+**/downloads/

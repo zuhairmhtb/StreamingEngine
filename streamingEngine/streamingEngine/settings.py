@@ -46,7 +46,8 @@ INSTALLED_APPS = [
     'rest_framework',
     'corsheaders',
     'storages',
-    'storage'
+    'storage',
+    'streamingEngine'
 ]
 
 MIDDLEWARE = [
@@ -97,7 +98,7 @@ AWS = {
         }
     }
 }
-
+AWS_TEMP_DOWNLOAD_DIR = os.path.join(BASE_DIR, 'downloads')
 
 # Database
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases

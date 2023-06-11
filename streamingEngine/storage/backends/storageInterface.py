@@ -1,6 +1,7 @@
 import abc
 from typing import IO, Any
 from .file import File
+from typing import Union
 
 
 class IStorageInterface(abc.ABC):
@@ -33,7 +34,7 @@ class IStorageInterface(abc.ABC):
         raise NotImplementedError
 
     @classmethod
-    def upload_file(cls, basedir: str, file: IO[Any], path: str, content_type: str,
+    def upload_file(cls, basedir: str, data: Union[IO[Any], str], path: str, content_type: str,
                     use_concurrency: bool, create_basedir_if_not_exist:bool, *args, **kwargs) -> bool:
         raise NotImplementedError
 

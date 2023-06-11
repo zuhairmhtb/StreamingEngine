@@ -79,9 +79,10 @@ class S3(IStorageInterface):
             return True
         return False
 
-    def upload_file(self, basedir: str, file: Union[IO[Any], StreamingBody], path: str, content_type:str,
+    def upload_file(self, basedir: str, data:Union[IO[Any], StreamingBody, str], path: str, content_type:str,
                     use_concurrency:bool=False, callback:S3FileUploadProgressCallback=None,
                     create_basedir_if_not_exist=False, *args, **kwargs) -> bool:
+
         if not self.does_bucket_exist(basedir):
             if create_basedir_if_not_exist:
                 self.create_bucket(basedir)
@@ -92,13 +93,21 @@ class S3(IStorageInterface):
             try:
                 metadata = {"Metadata": {CONTENT_TYPE_METADATA_KEY: content_type}}
                 if not use_concurrency:
-                    self.s3.upload_fileobj(Fileobj=file, Bucket=basedir, Key=path, ExtraArgs=metadata)
+                    if type(data) == str:
+                        self.s3.upload_file(Filename=data, Bucket=basedir, Key=path, ExtraArgs=metadata)
+                    else:
+                        self.s3.upload_fileobj(Fileobj=data, Bucket=basedir, Key=path, ExtraArgs=metadata)
                 else:
                     config = TransferConfig(
                         multipart_threshold=1024 * 25, max_concurrency=10, multipart_chunksize=1024*25, use_threads=True
                     )
-                    self.s3.upload_fileobj(Fileobj=file, Bucket=basedir, Key=path, Config=config, Callback=callback,
-                                           ExtraArgs=metadata)
+                    if type(data) == str:
+                        self.s3.upload_file(Filename=data, Bucket=basedir, Key=path, Config=config, Callback=callback,
+                                               ExtraArgs=metadata)
+                    else:
+                        self.s3.upload_fileobj(Fileobj=data, Bucket=basedir, Key=path, Config=config,
+                                            Callback=callback,
+                                            ExtraArgs=metadata)
                 return True
             except ClientError as e:
                 print(f"Error uploading file")

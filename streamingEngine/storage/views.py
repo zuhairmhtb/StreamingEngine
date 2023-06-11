@@ -34,7 +34,7 @@ class StorageView(APIView):
                 storage = self.__get_storage()
                 filepath = f'{StorageView.VIDEO_FILE_PATH}/{filename}'
                 response = storage.upload_file(
-                    basedir=bucket, file=file.file, path=filepath,
+                    basedir=bucket, data=file.file, path=filepath,
                     create_basedir_if_not_exist=True, content_type=file.content_type,
                     use_concurrency=False
                 )
