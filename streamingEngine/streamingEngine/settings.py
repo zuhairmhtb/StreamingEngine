@@ -59,6 +59,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'streamingEngine.middleware.ResponseHandlerMiddleware'
 ]
 
 ROOT_URLCONF = 'streamingEngine.urls'
@@ -99,7 +100,9 @@ AWS = {
     }
 }
 AWS_TEMP_DOWNLOAD_DIR = os.path.join(BASE_DIR, 'downloads')
+AWS_STREAM_UPLOAD_DIR = "videos"
 
+# APPEND_SLASH = False
 # Database
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
 

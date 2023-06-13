@@ -7,19 +7,26 @@ from django.core.files.uploadedfile import InMemoryUploadedFile
 from django.core.files.base import ContentFile
 from django.shortcuts import render
 
-from StreamingEngine.streamingEngine.storage.backends.storageInterface import IStorageInterface
-from StreamingEngine.streamingEngine.storage.backends.file import File
-from StreamingEngine.streamingEngine.storage.backends.s3.s3 import S3
-from StreamingEngine.streamingEngine.storage.backends.transcoder.transcoder import TranscoderConfiguration, HLSTranscoder
+from storage.backends.storageInterface import IStorageInterface
+from storage.backends.file import File
+from storage.backends.s3.s3 import S3
+from storage.backends.transcoder.transcoder import TranscoderConfiguration, HLSTranscoder
+from django.views.decorators.cache import cache_control
+from django.utils.decorators import method_decorator
+
+def get_storage_path(content:str)->str:
+    storage_path = f"{settings.AWS_STREAM_UPLOAD_DIR}/{content}/hls/"
+    return storage_path
 
 class StreamingView(TemplateView):
 
     template_name = "index.html"
 
-    def get(self, request:HttpRequest, *args, **kwargs):
-        file = request.GET.get('file', '')
+    @method_decorator(cache_control(max_age=0, no_cache=True, no_store=True))
+    def get(self, request:HttpRequest, file:str, *args, **kwargs):
         if (not (file is None)) and len(file) > 0:
-            return render(request, self.template_name, {"url": f"/playlist?file={file}"})
+            storage_path = get_storage_path(file)
+            return render(request, self.template_name, {"url": f"/playlist/{storage_path}"})
 
 
 
@@ -77,15 +84,25 @@ class PlayList(APIView):
                                                    base_output_dir=base_output_dir, relative_output_path=relative_filepath)
             return success
 
-    def get(self, request: HttpRequest, *args, **kwargs):
-        file = request.GET.get('file', '')
-        if (not (file is None)) and len(file) > 0:
+    @method_decorator(cache_control(max_age=0, no_cache=True, no_store=True))
+    def get(self, request: HttpRequest, segment_name:str, *args, **kwargs):
+        if (not (segment_name is None)) and len(segment_name) > 0:
             bucket = settings.AWS["S3"]["BUCKETS"]["RAW VIDEO"]["NAME"]
             storage = self.__get_storage()
-            file: File = storage.get_file(basedir=bucket, path=file)
+            storage_path = f"{settings.AWS_STREAM_UPLOAD_DIR}/{segment_name}"
+            #file: File = storage.get_file(basedir=bucket, path=f"{settings.AWS_STREAM_UPLOAD_DIR}/{segment_name}")
+            # master_playlist = request.GET.get('master_playlist', '')
+            # if len(master_playlist) > 0:
+            #     segment_name = segment_name + '/' + master_playlist
+            if not ( "m3u8" in segment_name) and not ('.ts' in segment_name):
+                segment_name = segment_name.rstrip("/") + "/" + "master.m3u8"
+            file: File = storage.get_file(basedir=bucket, path=f"{segment_name}")
             if not (file is None):
                 return HttpResponse(ContentFile(file.file), content_type=file.content_type)
         return HttpResponseServerError('Could not fetch a file. A file does not exist or has been removed')
+
+    def delete(self, request:HttpRequest):
+        return HttpResponse("ok")
 
     def post(self, request:HttpRequest, *args, **kwargs):
         if not (request.FILES is None):
@@ -106,12 +123,12 @@ class PlayList(APIView):
                         resolution='320:-1',
                         input_framerate=30
                     ),
-                    # TranscoderConfiguration(
-                    #     bitrate='800k',
-                    #     resolution='640:-1',
-                    #     input_framerate=30
-                    #
-                    # ),
+                    TranscoderConfiguration(
+                        bitrate='800k',
+                        resolution='640:-1',
+                        input_framerate=30
+
+                    ),
                     # TranscoderConfiguration(
                     #     bitrate='1200k',
                     #     resolution='854:-1',
@@ -136,8 +153,9 @@ class PlayList(APIView):
 
                 if not (master_manifest_filepath is None) and len(master_manifest_filepath) > 0:
                     # Upload content to S3
+                    s3_upload_path = f"{settings.AWS_STREAM_UPLOAD_DIR}/{temp_unique_dir}"
                     success = self.__upload_all_files_to_storage(path=temp_dir, storage=storage,
-                                                       base_output_dir=bucket, relative_output_path=f"{temp_unique_dir}")
+                                                       base_output_dir=bucket, relative_output_path=s3_upload_path)
                     if success:
                         # Delete temp directory
                         # shutil.rmtree(temp_dir, ignore_errors=True)

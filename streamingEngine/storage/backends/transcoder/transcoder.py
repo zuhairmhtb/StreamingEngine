@@ -192,7 +192,9 @@ class HLSTranscoder(object):
                     input_framerate=configuration.input_framerate,
                     base_output_dir=output_dir,
                     manifest_filename=manifest_filename,
-                    configuration=configuration
+                    configuration=configuration,
+                    output_format='hls',
+                    hls_file_pattern= os.path.join(output_dir, "output_%v_%03d.ts")
                 )
                 if not (manifest_absolute_path is None) and len(manifest_absolute_path) > 0:
                     added_transcodings.append(configuration)

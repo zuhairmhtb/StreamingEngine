@@ -2,7 +2,7 @@ from django.conf import settings
 import boto3
 from boto3.s3.transfer import TransferConfig
 from mypy_boto3_s3.client import S3Client
-from typing import IO, Union, Any
+from typing import IO, Union, Any, List
 from botocore.response import StreamingBody
 from botocore.exceptions import ClientError
 
@@ -135,16 +135,42 @@ class S3(IStorageInterface):
         return None
 
     def delete_file(self, basedir: str, path: str, *args, **kwargs) -> bool:
-        if self.does_bucket_exist(basedir) and self.does_file_exist(basedir=basedir, path=path):
+        if self.does_bucket_exist(basedir):
+            if self.does_file_exist(basedir=basedir, path=path):
+                try:
+                    self.s3.delete_object(Bucket=basedir, Key=path)
+                    return True
+                except ClientError as e:
+                    print(f"Error deleting file")
+                    print(e)
+            else:
+                try :
+                    response = self.s3.list_objects_v2(Bucket=basedir, Prefix=path)
+                    if not (response is None) and ('Contents' in response.keys()):
+                        for object in response['Contents']:
+                            self.s3.delete_object(Bucket=basedir, Key=object['Key'])
+                    return True
+                except ClientError as e:
+                    print(f"Error fetching path with prefix")
+                    print(e)
+        else:
+            print(f"Bucket {basedir} does not exist")
+        return False
+
+    def get_all_filepaths(self, basedir:str, path:str, *args, **kwargs)->List[str]:
+        result = []
+        if self.does_bucket_exist(basedir):
             try:
-                self.s3.delete_object(Bucket=basedir, Key=path)
-                return True
+                response = self.s3.list_objects_v2(Bucket=basedir, Prefix=path)
+                if not (response is None) and ('Contents' in response.keys()):
+                    for object in response['Contents']:
+                        result.append(object['Key'])
             except ClientError as e:
-                print(f"Error deleting file")
+                print(f"Error fetching path with prefix")
                 print(e)
         else:
-            print(f"Bucket {basedir} does not exist or the file {path} does not exist in the bucket")
-        return False
+            print(f"Bucket {basedir} does not exist")
+        return result
 
     def copy_file(self, source_basedir: str, source_path: str, destination_basedir, destination_path: str,
                   overwrite: bool = True, *args, **kwargs) -> bool:

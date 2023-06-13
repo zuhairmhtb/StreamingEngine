@@ -21,6 +21,6 @@ from . import views
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('storage/', include('storage.urls')),
-    path('streaming/', views.StreamingView.as_view(), name='stream'),
-    path('playlist/', views.PlayList.as_view(), name='playlist')
+    path('streaming/<str:file>/', views.StreamingView.as_view(), name='stream'),
+    path('playlist/<path:segment_name>/', views.PlayList.as_view(), name='playlist')
 ]

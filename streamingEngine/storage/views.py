@@ -5,7 +5,7 @@ from django.conf import settings
 from django.core.files.uploadedfile import InMemoryUploadedFile
 from django.core.files.base import ContentFile
 
-import uuid
+import uuid, json
 
 
 from .backends.s3.s3 import S3
@@ -15,7 +15,6 @@ from .backends.file import File
 
 
 class StorageView(APIView):
-    VIDEO_FILE_PATH = 'users'
 
     def __get_storage(self) -> IStorageInterface:
         return S3()
@@ -32,9 +31,8 @@ class StorageView(APIView):
                     extension = filename.split(".")[-1]
                     filename = str(uuid.uuid4()) + "." + extension
                 storage = self.__get_storage()
-                filepath = f'{StorageView.VIDEO_FILE_PATH}/{filename}'
                 response = storage.upload_file(
-                    basedir=bucket, data=file.file, path=filepath,
+                    basedir=bucket, data=file.file, path=filename,
                     create_basedir_if_not_exist=True, content_type=file.content_type,
                     use_concurrency=False
                 )
@@ -47,21 +45,26 @@ class StorageView(APIView):
     def get(self, request:HttpRequest, *args, **kwargs):
         file = request.GET.get('file', '')
         if (not (file is None)) and len(file) > 0:
-            filepath = f'{StorageView.VIDEO_FILE_PATH}/{file}'
             bucket = settings.AWS["S3"]["BUCKETS"]["RAW VIDEO"]["NAME"]
             storage = self.__get_storage()
-            file:File = storage.get_file(basedir=bucket, path=filepath)
+            file:File = storage.get_file(basedir=bucket, path=file)
             if not (file is None):
                 return HttpResponse(ContentFile(file.file), content_type=file.content_type)
+        else:
+            dir = request.GET.get('directory', '')
+            if not (dir is None) and len(dir) > 0:
+                bucket = settings.AWS["S3"]["BUCKETS"]["RAW VIDEO"]["NAME"]
+                storage = self.__get_storage()
+                return HttpResponse(json.dumps({"data": storage.get_all_filepaths(basedir=bucket, path=dir)}), content_type='application/json')
         return HttpResponseServerError('Could not fetch a file. A file does not exist or has been removed')
 
     def delete(self, request:HttpRequest, *args, **kwargs):
         file = request.GET.get('file', '')
+        storage = self.__get_storage()
+        bucket = settings.AWS["S3"]["BUCKETS"]["RAW VIDEO"]["NAME"]
         if (not (file is None)) and len(file) > 0:
-            filepath = f'{StorageView.VIDEO_FILE_PATH}/{file}'
-            bucket = settings.AWS["S3"]["BUCKETS"]["RAW VIDEO"]["NAME"]
-            storage = self.__get_storage()
-            success:bool = storage.delete_file(basedir=bucket, path=filepath)
+            success:bool = storage.delete_file(basedir=bucket, path=file)
             if success:
                 return HttpResponse(f"Successfully deleted file {file}")
+
         return HttpResponseServerError('Could not fetch a file. A file does not exist or has been removed')

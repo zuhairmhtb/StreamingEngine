@@ -1,5 +1,5 @@
 import abc
-from typing import IO, Any
+from typing import IO, Any, List
 from .file import File
 from typing import Union
 
@@ -13,19 +13,22 @@ class IStorageInterface(abc.ABC):
             callable(subclass.does_file_exist) and
 
             hasattr(subclass, 'upload_file') and
-            callable(subclass.does_file_exist) and
+            callable(subclass.upload_file) and
 
             hasattr(subclass, 'get_file') and
-            callable(subclass.does_file_exist) and
+            callable(subclass.get_file) and
+
+            hasattr(subclass, 'get_all_filepaths') and
+            callable(subclass.get_all_filepaths) and
 
             hasattr(subclass, 'delete_file') and
-            callable(subclass.does_file_exist) and
+            callable(subclass.delete_file) and
 
             hasattr(subclass, 'copy_file') and
-            callable(subclass.does_file_exist) and
+            callable(subclass.copy_file) and
 
             hasattr(subclass, 'move_file') and
-            callable(subclass.does_file_exist) or
+            callable(subclass.move_file) or
             NotImplemented
         )
 
@@ -43,6 +46,9 @@ class IStorageInterface(abc.ABC):
     def get_file(cls, basedir: str, path: str, *args, **kwargs) ->File:
         raise NotImplementedError
 
+    @classmethod
+    def get_all_filepaths(self, basedir:str, path:str, *args, **kwargs)->List[str]:
+        raise NotImplementedError
 
     @classmethod
     def delete_file(cls, basedir: str, path: str, *args, **kwargs) -> bool:
