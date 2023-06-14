@@ -119,26 +119,26 @@ class PlayList(APIView):
             if not (saved_filepath is None):
                 configurations = [
                     TranscoderConfiguration(
-                        bitrate='600k',
+                        bitrate='250000',
                         resolution='320:-1',
                         input_framerate=30
                     ),
                     TranscoderConfiguration(
-                        bitrate='800k',
+                        bitrate='500000',
                         resolution='640:-1',
                         input_framerate=30
 
                     ),
-                    # TranscoderConfiguration(
-                    #     bitrate='1200k',
-                    #     resolution='854:-1',
-                    #     input_framerate=30
-                    # ),
-                    # TranscoderConfiguration(
-                    #     bitrate='2000k',
-                    #     resolution='1280:-1',
-                    #     input_framerate=30
-                    # ),
+                    TranscoderConfiguration(
+                        bitrate='1000000',
+                        resolution='854:-1',
+                        input_framerate=30
+                    ),
+                    TranscoderConfiguration(
+                        bitrate='2000000',
+                        resolution='1280:-1',
+                        input_framerate=30
+                    ),
                 ]
 
                 # Transcode to HLS
