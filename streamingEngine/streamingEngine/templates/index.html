@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <title>Streaming</title>
     <link href="https://vjs.zencdn.net/8.3.0/video-js.css" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/videojs-chromecast/1.1.1/videojs.chromecast.css"
+          integrity="sha512-+9z/IGAr6x/8tEYa6BJoLzYTWnPp+MgIvd1Lmgsfm4LctZv/WiKdcoVUo5DZCj4zT87kiaj0ai9EPoeCsE4k8g==" crossorigin="anonymous" referrerpolicy="no-referrer" />
 </head>
 <body>
 <p>{{ url }}</p>
@@ -18,13 +20,11 @@
       >
       <!--<source src="https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel.ism/.m3u8" type="application/x-mpegURL">-->
         <source src="{{ url }}" type="application/x-mpegURL">
+        <track kind="chapters" src="/vtt/{{ id }}" label="Chapters" default />
    </video>
 
 
 <script src="https://vjs.zencdn.net/8.3.0/video.min.js"></script>
-
-
-    <!--<script src="https://cdn.jsdelivr.net/npm/@videojs/http-streaming@2.16.2/dist/videojs-http-streaming.min.js"></script>-->
 <script>
 var player = videojs('my-video');
    </script>

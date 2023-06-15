@@ -1,5 +1,6 @@
+from typing import List
 import os, uuid, mimetypes, shutil
-from django.http import HttpResponse, HttpRequest, HttpResponseServerError
+from django.http import HttpResponse, HttpRequest, HttpResponseServerError, HttpResponseForbidden
 from rest_framework.views import APIView
 from django.views.generic import TemplateView
 from django.conf import settings
@@ -7,16 +8,26 @@ from django.core.files.uploadedfile import InMemoryUploadedFile
 from django.core.files.base import ContentFile
 from django.shortcuts import render
 
-from storage.backends.storageInterface import IStorageInterface
-from storage.backends.file import File
-from storage.backends.s3.s3 import S3
-from storage.backends.transcoder.transcoder import TranscoderConfiguration, HLSTranscoder
+from .backends.storageInterface import IStorageInterface
+from .backends.file import File
+from .backends.s3.s3 import S3
 from django.views.decorators.cache import cache_control
 from django.utils.decorators import method_decorator
 
+from .task import transcode_video
+
+
+VIDEO_FOLDER_NAME = "videos"
+KEYS_FILE_NAME = "keys"
 def get_storage_path(content:str)->str:
-    storage_path = f"{settings.AWS_STREAM_UPLOAD_DIR}/{content}/hls/"
+    storage_path = f"{settings.AWS_STREAM_UPLOAD_DIR}/{content}"
     return storage_path
+
+def get_video_storage_path(content:str)->str:
+    return get_storage_path(content) + "/" + VIDEO_FOLDER_NAME
+
+def get_key_storage_path(content:str)->str:
+    return get_storage_path(content) + "/" + KEYS_FILE_NAME
 
 class StreamingView(TemplateView):
 
@@ -25,14 +36,50 @@ class StreamingView(TemplateView):
     @method_decorator(cache_control(max_age=0, no_cache=True, no_store=True))
     def get(self, request:HttpRequest, file:str, *args, **kwargs):
         if (not (file is None)) and len(file) > 0:
-            storage_path = get_storage_path(file)
-            return render(request, self.template_name, {"url": f"/playlist/{storage_path}"})
+            storage_path = get_video_storage_path(file)
+            return render(request, self.template_name, {"url": f"/playlist/{storage_path}/", "id": file})
 
 
+class VttView(APIView):
+    def get(self, request: HttpRequest, id:str, *args, **kwargs):
+        vtt_content = '''WEBVTT
+
+1
+00:00:00.000 --> 00:00:03.500
+Chapter 1
+
+2
+00:00:03.500 --> 00:00:03.000
+Chapter 2
+
+3
+00:06:10.000 --> 00:09:25.000
+Chapter 3
+ '''
+        return HttpResponse(vtt_content, content_type="text/vtt")
+class KeysView(APIView):
+
+    def __get_storage(self) -> IStorageInterface:
+        return S3()
+    @method_decorator(cache_control(max_age=0, no_cache=True, no_store=True))
+    def get(self, request: HttpRequest, id:str, *args, **kwargs):
+        is_authorized = True
+        if not is_authorized:
+            return HttpResponseForbidden("You are not allowed to access this video")
+        if not (id is None) and len(id) > 0:
+            keys_path = get_key_storage_path(id)
+            bucket = settings.AWS["S3"]["BUCKETS"]["RAW VIDEO"]["NAME"]
+            storage = self.__get_storage()
+            file: File = storage.get_file(basedir=bucket, path=f"{keys_path}")
+            if not (file is None):
+                return HttpResponse(ContentFile(file.file), content_type=file.content_type)
+
+        return HttpResponseServerError("Could not find keys")
 
 
 class PlayList(APIView):
 
+    MASTER_MANIFEST_FILENAME = "master.m3u8"
     def __get_storage(self) -> IStorageInterface:
         return S3()
 
@@ -55,60 +102,36 @@ class PlayList(APIView):
             print("Error saving file to temp directory")
         return None
 
-    def __upload_all_files_to_storage(self, path:str, storage:IStorageInterface, base_output_dir:str, relative_output_path:str)->bool:
-        if not os.path.exists(path):
-            return False
-
-        if os.path.isfile(path):
-            if path.endswith(".ts"):
-                mimetype = "video/mp2t"  # mimetypes package does not recognize hls ts files
-            else:
-                mimetype = mimetypes.guess_type(path)[0]
-                if mimetype is None:
-                    mimetype = 'text/html'
-            storage.upload_file(
-                basedir=base_output_dir,
-                data=path,
-                path=relative_output_path,
-                content_type=mimetype,
-                use_concurrency=True,
-                create_basedir_if_not_exist=True
-            )
-            return True
-        else:
-            success = True
-            for file in os.listdir(path):
-                filepath = os.path.join(path, file)
-                relative_filepath = f"{relative_output_path}/{file}"
-                success = success and self.__upload_all_files_to_storage(path=filepath, storage=storage,
-                                                   base_output_dir=base_output_dir, relative_output_path=relative_filepath)
-            return success
-
     @method_decorator(cache_control(max_age=0, no_cache=True, no_store=True))
     def get(self, request: HttpRequest, segment_name:str, *args, **kwargs):
         if (not (segment_name is None)) and len(segment_name) > 0:
             bucket = settings.AWS["S3"]["BUCKETS"]["RAW VIDEO"]["NAME"]
             storage = self.__get_storage()
-            storage_path = f"{settings.AWS_STREAM_UPLOAD_DIR}/{segment_name}"
-            #file: File = storage.get_file(basedir=bucket, path=f"{settings.AWS_STREAM_UPLOAD_DIR}/{segment_name}")
-            # master_playlist = request.GET.get('master_playlist', '')
-            # if len(master_playlist) > 0:
-            #     segment_name = segment_name + '/' + master_playlist
             if not ( "m3u8" in segment_name) and not ('.ts' in segment_name):
-                segment_name = segment_name.rstrip("/") + "/" + "master.m3u8"
+                segment_name = segment_name.rstrip("/") + "/" + PlayList.MASTER_MANIFEST_FILENAME
             file: File = storage.get_file(basedir=bucket, path=f"{segment_name}")
             if not (file is None):
                 return HttpResponse(ContentFile(file.file), content_type=file.content_type)
         return HttpResponseServerError('Could not fetch a file. A file does not exist or has been removed')
 
-    def delete(self, request:HttpRequest):
+    def delete(self, request:HttpRequest, segment_name:str, *args, **kwargs):
+        if (not (segment_name is None)) and len(segment_name) > 0:
+            bucket = settings.AWS["S3"]["BUCKETS"]["RAW VIDEO"]["NAME"]
+            storage = self.__get_storage()
+            storage_path = get_storage_path(segment_name)
+            contents:List[str] = storage.get_all_filepaths(basedir=bucket, path=storage_path)
+
+            if not (contents is None) and len(contents) > 0:
+                for content in contents:
+                    storage.delete_file(basedir=bucket, path=content)
+
         return HttpResponse("ok")
 
     def post(self, request:HttpRequest, *args, **kwargs):
         if not (request.FILES is None):
-            file:InMemoryUploadedFile = request.FILES.get('file', None)
+            file: InMemoryUploadedFile = request.FILES.get('file', None)
 
-            storage:IStorageInterface = self.__get_storage()
+            storage: IStorageInterface = self.__get_storage()
             bucket = settings.AWS["S3"]["BUCKETS"]["RAW VIDEO"]["NAME"]
 
             # Save video to temp directory
@@ -116,49 +139,16 @@ class PlayList(APIView):
             temp_dir = os.path.join(settings.AWS_TEMP_DOWNLOAD_DIR, temp_unique_dir)
             saved_filepath = self.__save_file(file=file, temp_dir=temp_dir)
 
-            if not (saved_filepath is None):
-                configurations = [
-                    TranscoderConfiguration(
-                        bitrate='250000',
-                        resolution='320:-1',
-                        input_framerate=30
-                    ),
-                    TranscoderConfiguration(
-                        bitrate='500000',
-                        resolution='640:-1',
-                        input_framerate=30
-
-                    ),
-                    TranscoderConfiguration(
-                        bitrate='1000000',
-                        resolution='854:-1',
-                        input_framerate=30
-                    ),
-                    TranscoderConfiguration(
-                        bitrate='2000000',
-                        resolution='1280:-1',
-                        input_framerate=30
-                    ),
-                ]
-
-                # Transcode to HLS
-                output_dir = os.path.join(temp_dir, 'hls')
-                transcoder = HLSTranscoder()
-                master_manifest_filepath = transcoder.transcode_adaptive_bitrate(
-                    input_filepath=saved_filepath,
-                    manifest_filename='master.m3u8',
-                    configurations=configurations,
-                    output_folder=output_dir
-                )
-
-                if not (master_manifest_filepath is None) and len(master_manifest_filepath) > 0:
-                    # Upload content to S3
-                    s3_upload_path = f"{settings.AWS_STREAM_UPLOAD_DIR}/{temp_unique_dir}"
-                    success = self.__upload_all_files_to_storage(path=temp_dir, storage=storage,
-                                                       base_output_dir=bucket, relative_output_path=s3_upload_path)
-                    if success:
-                        # Delete temp directory
-                        # shutil.rmtree(temp_dir, ignore_errors=True)
-                        return HttpResponse(f"Uploaded file to {bucket}/{temp_unique_dir}")
+            transcode_video.delay(
+                input_filepath=saved_filepath,
+                transcoding_base_output_dir=temp_dir,
+                video_folder_name=VIDEO_FOLDER_NAME,
+                manifest_filename=PlayList.MASTER_MANIFEST_FILENAME,
+                encryption_key_filename=KEYS_FILE_NAME,
+                encryption_key_url=f"/keys/{temp_unique_dir}",
+                output_storage_basedir=bucket,
+                output_storage_filepath=get_storage_path(temp_unique_dir)
+            )
+            return HttpResponse(f"Your video {temp_unique_dir} is being transcoded and uploaded to S3. Please wait a while")
 
         return HttpResponseServerError("Error uploading file")

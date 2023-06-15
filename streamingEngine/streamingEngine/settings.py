@@ -46,7 +46,6 @@ INSTALLED_APPS = [
     'rest_framework',
     'corsheaders',
     'storages',
-    'storage',
     'streamingEngine'
 ]
 
@@ -101,6 +100,10 @@ AWS = {
 }
 AWS_TEMP_DOWNLOAD_DIR = os.path.join(BASE_DIR, 'downloads')
 AWS_STREAM_UPLOAD_DIR = "videos"
+
+# Celery configuration
+CELERY_BROKER_URL = "redis://localhost:6379"
+CELERY_RESULT_BACKEND = "redis://localhost:6379"
 
 # APPEND_SLASH = False
 # Database

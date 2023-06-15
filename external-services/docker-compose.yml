@@ -14,3 +14,9 @@ services:
       - '4566:4566'
     volumes:
       - ./s3-local/data:/tmp/localstack/data
+
+  redis:
+    image: redis:6-alpine
+    container_name: streaming-engine-redis
+    ports:
+      - '6379:6379'

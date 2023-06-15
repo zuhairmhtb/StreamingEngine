@@ -1,11 +1,15 @@
 #!/usr/bin/env python
 """Django's command-line utility for administrative tasks."""
 import os
-import sys
+import sys, asyncio
+
+
 
 
 def main():
     """Run administrative tasks."""
+    if sys.platform == "win32" and sys.version_info >= (3, 8, 0):
+        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
     os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'streamingEngine.settings')
     try:
         from django.core.management import execute_from_command_line
