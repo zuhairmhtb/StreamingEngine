@@ -1,0 +1,251 @@
+{
+	"info": {
+		"_postman_id": "6948d124-a0a0-47d8-81a8-e045a85e71dc",
+		"name": "Streaming Engine",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "25194933",
+		"_collection_link": "https://e-hrms.postman.co/workspace/Echologyx~fdc5b411-e531-4a7b-a606-d60c6d6caa95/collection/25194933-6948d124-a0a0-47d8-81a8-e045a85e71dc?action=share&creator=25194933&source=collection_link"
+	},
+	"item": [
+		{
+			"name": "Streaming Service",
+			"item": [
+				{
+					"name": "Upload playlist",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"type": "file",
+									"src": "/C:/Users/DELL/Desktop/zuhair_tests/drip/video.mp4"
+								}
+							]
+						},
+						"url": {
+							"raw": "http://127.0.0.1:8000/playlist/",
+							"protocol": "http",
+							"host": [
+								"127",
+								"0",
+								"0",
+								"1"
+							],
+							"port": "8000",
+							"path": [
+								"playlist",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Playlist",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://127.0.0.1:8000/playlist/videos/47141773-573e-4b3a-ab5b-dad42939667f/hls/master.m3u8",
+							"protocol": "http",
+							"host": [
+								"127",
+								"0",
+								"0",
+								"1"
+							],
+							"port": "8000",
+							"path": [
+								"playlist",
+								"videos",
+								"47141773-573e-4b3a-ab5b-dad42939667f",
+								"hls",
+								"master.m3u8"
+							],
+							"query": [
+								{
+									"key": "file",
+									"value": "47141773-573e-4b3a-ab5b-dad42939667f/hls/600k/master.m3u8",
+									"disabled": true
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Key",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://127.0.0.1:8000/keys/ee81d175-4e4d-4acc-9029-6baa8ae5a839",
+							"protocol": "http",
+							"host": [
+								"127",
+								"0",
+								"0",
+								"1"
+							],
+							"port": "8000",
+							"path": [
+								"keys",
+								"ee81d175-4e4d-4acc-9029-6baa8ae5a839"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete playlist",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "http://127.0.0.1:8000/playlist/06813cdb-f374-431e-b45c-8994fdbbcff0",
+							"protocol": "http",
+							"host": [
+								"127",
+								"0",
+								"0",
+								"1"
+							],
+							"port": "8000",
+							"path": [
+								"playlist",
+								"06813cdb-f374-431e-b45c-8994fdbbcff0"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Upload Video",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"type": "file",
+									"src": "/C:/Users/DELL/Desktop/zuhair_tests/drip/laravel_streaming/storage/app/private/sample.mp4"
+								}
+							]
+						},
+						"url": {
+							"raw": "http://127.0.0.1:8000/video/",
+							"protocol": "http",
+							"host": [
+								"127",
+								"0",
+								"0",
+								"1"
+							],
+							"port": "8000",
+							"path": [
+								"video",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Transcode Playlist",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"url": {
+							"raw": "http://127.0.0.1:8000/playlist?segment_name=videos/raw/0369aa87-7613-4077-aeac-59fbb9235dee/sample.mp4&encryption_url=http://localhost:8000/keys",
+							"protocol": "http",
+							"host": [
+								"127",
+								"0",
+								"0",
+								"1"
+							],
+							"port": "8000",
+							"path": [
+								"playlist"
+							],
+							"query": [
+								{
+									"key": "segment_name",
+									"value": "videos/raw/0369aa87-7613-4077-aeac-59fbb9235dee/sample.mp4"
+								},
+								{
+									"key": "encryption_url",
+									"value": "http://localhost:8000/keys"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get All files",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://127.0.0.1:8000/video/?path=videos/",
+							"protocol": "http",
+							"host": [
+								"127",
+								"0",
+								"0",
+								"1"
+							],
+							"port": "8000",
+							"path": [
+								"video",
+								""
+							],
+							"query": [
+								{
+									"key": "path",
+									"value": "videos/"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete all files",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "http://127.0.0.1:8000/video/?path=/",
+							"protocol": "http",
+							"host": [
+								"127",
+								"0",
+								"0",
+								"1"
+							],
+							"port": "8000",
+							"path": [
+								"video",
+								""
+							],
+							"query": [
+								{
+									"key": "path",
+									"value": "/"
+								}
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		}
+	]
+}

@@ -27,11 +27,11 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.getenv('SECRERT_KEY')
+SECRET_KEY = os.getenv('SECRET_KEY')
 
 
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*']
 
 
 # Application definition
@@ -102,8 +102,8 @@ AWS_TEMP_DOWNLOAD_DIR = os.path.join(BASE_DIR, 'downloads')
 AWS_STREAM_UPLOAD_DIR = "videos"
 
 # Celery configuration
-CELERY_BROKER_URL = "redis://localhost:6379"
-CELERY_RESULT_BACKEND = "redis://localhost:6379"
+CELERY_BROKER_URL = os.getenv("REDIS_URL", "redis://localhost:6379")
+CELERY_RESULT_BACKEND = os.getenv("REDIS_URL", "redis://localhost:6379")
 
 # APPEND_SLASH = False
 # Database

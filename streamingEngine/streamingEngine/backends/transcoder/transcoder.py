@@ -87,7 +87,10 @@ class Transcoder(object):
                 and not (manifest_filename is None) and len(manifest_filename) > 0 \
                 and len(configurations) > 0 and len(output_formats) > 0:
             if not os.path.exists(input_filepath):
+                print(f"Could no transcode video as the raw video was not found at {input_filepath}")
                 return None
+            else:
+                print(f"Transcoding video {input_filepath}")
             video = ffmpeg_streaming.input(input_filepath)
             for format in output_formats:
                 output_format = None
@@ -105,12 +108,14 @@ class Transcoder(object):
                     if not os.path.exists(base_output_dir):
                         os.makedirs(base_output_dir)
                     output_filepath = os.path.join(base_output_dir, manifest_filename)
+                    print(f"Saving transcoded video's master playlist to {output_filepath}")
 
                     if not (encryption_key_directory is None) and not (encryption_key_url is None):
                         output_format.encryption(encryption_key_directory, encryption_key_url)
                     output_format.output(output_filepath, monitor=monitor)
                     return output_filepath
-
+        else:
+            print(f"Could not transcode video as some of the configurations are missing")
         return None
 
 if __name__ == "__main__":

@@ -13,10 +13,75 @@ services:
     ports: 
       - '4566:4566'
     volumes:
-      - ./s3-local/data:/tmp/localstack/data
+      - ./external-services/s3-local/data:/tmp/localstack/data
+
+    networks:
+      - streaming_engine_network
 
   redis:
     image: redis:6-alpine
     container_name: streaming-engine-redis
     ports:
       - '6379:6379'
+
+    networks:
+      - streaming_engine_network
+
+  transcoder:
+    build:
+      context: ./streamingEngine
+      dockerfile: Dockerfile
+
+    container_name: transcoder
+
+    environment:
+      - SECRET_KEY=${SECRET_KEY}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_STORAGE_BUCKET_NAME=${AWS_STORAGE_BUCKET_NAME}
+      - AWS_S3_DOMAIN=${AWS_S3_DOMAIN}
+      - AWS_REGION=${AWS_REGION}
+      - TRANSCODE_COMPLETE_WEBHOOK=${TRANSCODE_COMPLETE_WEBHOOK}
+      - REDIS_URL=${REDIS_URL}
+
+    volumes:
+      - ./streamingEngine:/app
+
+    depends_on: [redis]
+
+    command: celery -A streamingEngine worker -l INFO
+
+    networks:
+      - streaming_engine_network
+
+
+  streaming-engine:
+    build:
+      context: ./streamingEngine
+      dockerfile: Dockerfile
+
+    container_name: streaming-engine
+    environment:
+      - SECRET_KEY=${SECRET_KEY}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_STORAGE_BUCKET_NAME=${AWS_STORAGE_BUCKET_NAME}
+      - AWS_S3_DOMAIN=${AWS_S3_DOMAIN}
+      - AWS_REGION=${AWS_REGION}
+      - TRANSCODE_COMPLETE_WEBHOOK=${TRANSCODE_COMPLETE_WEBHOOK}
+      - REDIS_URL=${REDIS_URL}
+
+    ports:
+      - '8000:8000'
+
+    volumes:
+      - ./streamingEngine:/app
+
+    depends_on: [s3bucket, transcoder]
+
+    networks:
+      - streaming_engine_network
+
+
+networks:
+  streaming_engine_network:
