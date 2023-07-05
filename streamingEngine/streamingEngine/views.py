@@ -1,6 +1,6 @@
 from typing import List
 import os, uuid, mimetypes, shutil
-from django.http import HttpResponse, HttpRequest, HttpResponseServerError, HttpResponseForbidden
+from django.http import HttpResponse, HttpRequest, HttpResponseServerError, HttpResponseForbidden, JsonResponse
 from rest_framework.views import APIView
 from django.views.generic import TemplateView
 from django.conf import settings
@@ -57,6 +57,15 @@ Chapter 2
 Chapter 3
  '''
         return HttpResponse(vtt_content, content_type="text/vtt")
+
+
+
+class SampleView(APIView):
+    def post(self, request:HttpRequest, *args, **kwargs):
+        print("Received post request with data")
+        print(request.POST.dict())
+        return HttpResponse("ok")
+
 class KeysView(APIView):
 
     def __get_storage(self) -> IStorageInterface:
@@ -76,6 +85,76 @@ class KeysView(APIView):
 
         return HttpResponseServerError("Could not find keys")
 
+
+
+class VideoUploader(APIView):
+
+    def __save_file(self, file:InMemoryUploadedFile, temp_dir:str)->str:
+        if not os.path.exists(temp_dir):
+            os.makedirs(temp_dir)
+
+        filename: str = file.name
+        file_extension = filename.split(".")[-1]
+
+        if not file_extension.lower() in ['mp4', 'mkv']:
+            return None
+
+        temp_filepath = os.path.join(temp_dir, filename)
+        try:
+            with open(temp_filepath, 'wb') as f:
+                f.write(file.read())
+            return temp_filepath
+        except Exception as e:
+            print("Error saving file to temp directory")
+        return None
+
+    def get(self, request:HttpRequest, *args, **kwargs):
+        path = request.GET.get("path", "")
+        if not (path is None) and len(path) > 0:
+            bucket = settings.AWS["S3"]["BUCKETS"]["RAW VIDEO"]["NAME"]
+            storage:IStorageInterface = S3()
+            result = storage.get_all_filepaths(basedir=bucket, path=path)
+            return HttpResponse(str(result))
+        return HttpResponse("No files found")
+
+    def delete(self, request:HttpRequest, *args, **kwargs):
+        path = request.GET.get("path", "")
+        if not (path is None) and len(path) > 0:
+            bucket = settings.AWS["S3"]["BUCKETS"]["RAW VIDEO"]["NAME"]
+            storage: IStorageInterface = S3()
+            result = storage.delete_file(basedir=bucket, path=path)
+            return HttpResponse(str(result))
+        return HttpResponse("No files found")
+    def post(self,  request:HttpRequest, *args, **kwargs):
+        if not (request.FILES is None):
+            file: InMemoryUploadedFile = request.FILES.get('file', None)
+
+            bucket = settings.AWS["S3"]["BUCKETS"]["RAW VIDEO"]["NAME"]
+
+            # Save video to temp directory
+            temp_unique_dir = str(uuid.uuid4())
+            temp_dir = os.path.join(settings.AWS_TEMP_DOWNLOAD_DIR, temp_unique_dir)
+            saved_filepath = self.__save_file(file=file, temp_dir=temp_dir)
+            mimetype = mimetypes.guess_type(saved_filepath)[0]
+            if (mimetype is None) or (len(mimetype) == 0):
+                mimetype = "text/html"
+
+            s3_path = get_storage_path(f"raw/{temp_unique_dir}/{file.name}")
+
+            uploaded = S3().upload_file(
+                basedir=bucket,
+                data=saved_filepath,
+                path=s3_path,
+                content_type=mimetype,
+                create_basedir_if_not_exist=True
+            )
+
+            if uploaded:
+                os.remove(saved_filepath)
+                return HttpResponse(f"Uploaded file to {s3_path}")
+            return HttpResponseServerError(f"Error uploading file {file.name} to {s3_path}")
+
+        return HttpResponseServerError("Error uploading file")
 
 class PlayList(APIView):
 
@@ -126,6 +205,37 @@ class PlayList(APIView):
                     storage.delete_file(basedir=bucket, path=content)
 
         return HttpResponse("ok")
+
+    def put(self, request:HttpRequest, *args, **kwargs):
+        segment_name = request.GET.get("segment_name", "")
+        if not (segment_name is None) and len(segment_name) > 0:
+            bucket = settings.AWS["S3"]["BUCKETS"]["RAW VIDEO"]["NAME"]
+            # Save video to temp directory
+            temp_unique_dir = str(uuid.uuid4())
+            temp_dir = os.path.join(settings.AWS_TEMP_DOWNLOAD_DIR, temp_unique_dir)
+            encryption_key_url:str = request.GET.get("encryption_url", f"/keys/")
+            encryption_key_url = encryption_key_url.rstrip("/") + "/" + temp_unique_dir
+            transcode_video.delay(
+                input_filepath=segment_name,
+                transcoding_base_output_dir=temp_dir,
+                video_folder_name=VIDEO_FOLDER_NAME,
+                manifest_filename=PlayList.MASTER_MANIFEST_FILENAME,
+                encryption_key_filename=KEYS_FILE_NAME,
+                encryption_key_url=encryption_key_url,
+                output_storage_basedir=bucket,
+                output_storage_filepath=get_storage_path(temp_unique_dir),
+                s3_bucket_name=bucket
+            )
+            # return HttpResponse(
+            #     f"Your video {temp_unique_dir} is being transcoded and uploaded to S3. Please wait a while. The transcoded file will be saved in {temp_unique_dir}")
+
+            return JsonResponse({
+                "id": temp_unique_dir
+            })
+
+
+
+        return HttpResponseServerError("Could not fetch the file")
 
     def post(self, request:HttpRequest, *args, **kwargs):
         if not (request.FILES is None):

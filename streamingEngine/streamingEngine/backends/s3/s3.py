@@ -157,6 +157,7 @@ class S3(IStorageInterface):
             print(f"Bucket {basedir} does not exist")
         return False
 
+
     def get_all_filepaths(self, basedir:str, path:str, *args, **kwargs)->List[str]:
         result = []
         if self.does_bucket_exist(basedir):

@@ -20,9 +20,11 @@ from . import views
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('sample/', views.SampleView.as_view(), name='sample'),
     path('streaming/<str:file>/', views.StreamingView.as_view(), name='stream'),
     path('playlist/', views.PlayList.as_view(), name='playlist'),
     path('playlist/<path:segment_name>/', views.PlayList.as_view(), name='playlist'),
     path('keys/<str:id>/', views.KeysView.as_view(), name='keys'),
-    path('vtt/<str:id>/', views.VttView.as_view(), name='vtt')
+    path('vtt/<str:id>/', views.VttView.as_view(), name='vtt'),
+    path('video/', views.VideoUploader.as_view(), name='videos')
 ]
